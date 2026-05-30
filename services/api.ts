@@ -25,7 +25,12 @@ export const meetingService = {
   create: (title: string) =>
     api.post("/meetings/create", { title }),
   join: (code: string) =>
-    api.post("/meetings/join", { code }),
+    api.post("/meetings/join", { code }).catch((e) => {
+      if (e.response?.status === 404) {
+        throw new Error("Meeting not found");
+      }
+      throw e;
+    }),
   leave: (meetingId: string) =>
     api.post(`/meetings/${meetingId}/leave`),
   end: (meetingId: string) =>
@@ -36,6 +41,19 @@ export const meetingService = {
     api.get(`/meetings/${id}`),
   updateThresholds: (meetingId: string, thresholds: object) =>
     api.put(`/meetings/${meetingId}/thresholds`, thresholds),
+  // method to fetch meetings by active status for a user
+  getMeetingsByStatus: (userId: number | string, active: boolean) =>
+    api.get(`/meetings/list/${userId}`, { params: { active } }),
+
+  // ─── NEW DETAILED HISTORY METHOD ──────────────────────────────────────
+  getDetailedHistory: (hostId: number | string) =>
+    api.get(`/meetings/detail-history`, { params: { hostId } }),
+
+  // Utility to construct screenshot URLs
+  getScreenshotBlob: (path: string) => {
+    const filename = path.split('/').pop() || path;
+    return api.get(`/screenshot/${filename}`, { responseType: 'blob' });
+  }
 };
 
 // ─── Events ───────────────────────────────────────────────────────────────────
@@ -58,6 +76,8 @@ export const analyticsService = {
     api.get("/analytics/host/overview"),
   getAttentionTimeline: (meetingId: string) =>
     api.get(`/analytics/meeting/${meetingId}/timeline`),
+  getUserOverview: (userId: number | string) =>
+    api.get(`/analytics/userOverview/${userId}`),
 };
 
 export default api;
