@@ -1,28 +1,49 @@
 import {
   View, Text, ScrollView, TouchableOpacity, Alert,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../../store";
+import { authService } from "@/services/api";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
+  const executeClearance = async () => {
+    try {
+      // Fires the backend session termination route (/auth/logout)
+      await authService.logout();
+    } catch (e) {
+      console.log("Backend notification skipped or unauthenticated:", e);
+    }
+
+    // Clean up asynchronous mobile storage allocations
+    await AsyncStorage.removeItem("token");
+
+    // Invalidate state memory parameters inside your Zustand store
+    logout();
+
+    // Break out of the tabs system layout cleanly back to the authentication screen root
+    router.replace("/(auth)/login");
+  };
+
+  // Environment Guard: Browser engine versus native mobile shell
+  if (Platform.OS === "web") {
+    const checkWebConfirmation = window.confirm("Are you sure you want to log out?");
+    if (checkWebConfirmation) {
+      executeClearance();
+    }
+  } else {
     Alert.alert("Logout", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout", style: "destructive",
-        onPress: async () => {
-          await AsyncStorage.removeItem("token");
-          logout();
-          router.replace("/(auth)/login");
-        },
-      },
+      { text: "Logout", style: "destructive", onPress: executeClearance },
     ]);
-  };
+  }
+};
 
   const MenuItem = ({ emoji, label, sub, onPress, danger }: any) => (
     <TouchableOpacity
